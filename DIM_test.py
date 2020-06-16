@@ -62,10 +62,13 @@ transform = transforms.Compose([transforms.Grayscale(),
                                 transforms.RandomVerticalFlip(0.5),
                                 transforms.ToTensor()])
 
+transform_test = transforms.Compose([transforms.Grayscale(),
+                                     transforms.ToTensor()])
+
 train_data=MyDataset(ds=CIFAR10, transform=transform)
 data_loader_train = DataLoader(train_data, batch_size=batch_size,shuffle=True)
 
-test_data=MyDataset(ds=CIFAR10_test, transform=transform)
+test_data=MyDataset(ds=CIFAR10_test, transform=transform_test)
 data_loader_test = DataLoader(test_data, batch_size=batch_size,shuffle=False)
 
 
@@ -122,6 +125,33 @@ def plot_2d(feature,sex_tlabel, ep,picpath='./pic/'):
         plt.title('EDisease (cifar10) '+str(p))     
         plt.legend()
     plt.savefig(picpath+'EDisease_2d_cifar10_'+str(ep)+'.png')
+    # plt.show()
+    plt.close()
+
+def plot_tsen(feature,sex_tlabel, ep,picpath='./pic_tsne/'): 
+    print('** draw 2d **')
+    import matplotlib.pyplot as plt
+    from sklearn import manifold
+
+    #draw tsne
+    print(' ** tsne ** ')
+    tsne = manifold.TSNE(n_components=2, init='pca', random_state=501)
+    T_tsne = tsne.fit_transform(feature.numpy())
+    
+    dim_len = feature.shape[1]
+    pic_len = int(dim_len/2)
+    
+    fig = plt.figure(figsize=(48,48),dpi=100)
+    
+    ax = plt.subplot2grid((1,1),(1,1))
+    #ax = fig.add_subplot(int(pn))
+    for tril in range(10):
+        cls = sex_tlabel==tril        
+        ax.scatter(T_tsne[cls,0],T_tsne[cls,1],
+                   marker = '.', alpha=0.3,label=str(tril))    
+    plt.title('EDisease (cifar10) tsne '+str(p))     
+    plt.legend()
+    plt.savefig(picpath+'EDisease_2d_cifar10_tsne_'+str(ep)+'.png')
     # plt.show()
     plt.close()
 
@@ -358,7 +388,8 @@ class DIM(nn.Module):
 def test_AIemb(DS_model,
                dloader,
                ep,
-               picpath):
+               picpath,
+               tsnepath):
     global device
     DS_model.eval()
     
@@ -378,6 +409,8 @@ def test_AIemb(DS_model,
     all_label = torch.cat(all_label_,dim=0)            
 
     plot_2d(f_target,all_label,ep,picpath)
+    if ep%5==0:
+        plot_tsen(f_target,all_label,ep,tsnepath)
     return f_target,all_label
 
 
@@ -491,8 +524,9 @@ def train_AIemb(DS_model,
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep+60,
-                   picpath='./pic/')
+                   ep+80,
+                   picpath='./pic/',
+                   tsnepath='./tsne_pic/')
     print(total_loss)
 
 
@@ -605,7 +639,9 @@ def train_AIAED(DS_model,
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep+42,picpath='./pic_AE/')
+                   ep+70,
+                   picpath='./pic_AE/',
+                   tsnepath='./tsne_pic_AE/')
     print(total_loss)
     
 if task == 'dim':    
