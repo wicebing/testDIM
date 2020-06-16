@@ -141,9 +141,9 @@ def plot_tsen(feature,sex_tlabel, ep,picpath='./pic_tsne/'):
     dim_len = feature.shape[1]
     pic_len = int(dim_len/2)
     
-    fig = plt.figure(figsize=(48,48),dpi=100)
+    fig = plt.figure(figsize=(10,10),dpi=100)
     
-    ax = plt.subplot2grid((1,1),(1,1))
+    ax = fig.add_subplot(111)
     #ax = fig.add_subplot(int(pn))
     for tril in range(10):
         cls = sex_tlabel==tril        
