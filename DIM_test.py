@@ -57,7 +57,10 @@ lr = 1e-5
 parallel= False
 device = 'cuda'
 
-transform = transforms.Compose([transforms.Grayscale(),transforms.ToTensor()])
+transform = transforms.Compose([transforms.Grayscale(),
+                                transforms.RandomRotation(8),
+                                transforms.RandomVerticalFlip(0.5),
+                                transforms.ToTensor()])
 
 train_data=MyDataset(ds=CIFAR10, transform=transform)
 data_loader_train = DataLoader(train_data, batch_size=batch_size,shuffle=True)
@@ -488,7 +491,7 @@ def train_AIemb(DS_model,
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep+38,
+                   ep+60,
                    picpath='./pic/')
     print(total_loss)
 
@@ -516,10 +519,10 @@ def train_AIAED(DS_model,
     iteration = 0
     total_loss = []
     
-    f_target,all_label = test_AIemb(DS_model,
-               data_loader_test,
-               'init',
-               picpath='./pic_AE/')
+    # f_target,all_label = test_AIemb(DS_model,
+    #            data_loader_test,
+    #            'init',
+    #            picpath='./pic_AE/')
     
     for ep in range(epoch):   
         t0 = time.time()
@@ -598,11 +601,11 @@ def train_AIAED(DS_model,
         print('++ Ep Time: {:.1f} Secs ++'.format(time.time()-t0)) 
         total_loss.append(float(epoch_loss/epoch_cases))
         pd_total_loss = pd.DataFrame(total_loss)
-        pd_total_loss.to_csv('./loss_record/total_loss_finetune.csv', sep = ',')
+        pd_total_loss.to_csv('./loss_record/total_loss_finetune_ae.csv', sep = ',')
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep,picpath='./pic_AE/')
+                   ep+42,picpath='./pic_AE/')
     print(total_loss)
     
 if task == 'dim':    
