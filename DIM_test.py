@@ -49,6 +49,7 @@ batch_size = 4
 lr = 1e-5
 checkpoint_file = './checkpoint' 
 parallel= False
+device = 'cuda'
 
 transform = transforms.Compose([transforms.Grayscale(),transforms.ToTensor()])
 
@@ -358,6 +359,7 @@ def train_AIemb(DS_model,
         for batch_idx, data in enumerate(dloader):
             
             sample,label = data
+            sample,label = sample.to(device),label.to(device)
             
             model_optimizer.zero_grad()
             model_optimizer_dim.zero_grad()
