@@ -300,14 +300,17 @@ class GloD(nn.Module):
                                    )
 
         
-    def forward(self, emb, img):
+    def forward(self, emb, emb_fake, img):
         bs = img.shape[0]        
         ME = self.encode1(img)
                 
-        EM = torch.cat([emb,ME.view(bs,-1)],dim=1)    
+        EM = torch.cat([emb,ME.view(bs,-1)],dim=1)
         output = self.Global(EM)
+        
+        EM_fake = torch.cat([emb_fake,ME.view(bs,-1)],dim=1)
+        output_fake = self.Global(EM_fake)
                             
-        return output
+        return output, output_fake
 
 class PriorD(nn.Module):
     def __init__(self):
@@ -373,8 +376,8 @@ class DIM(nn.Module):
         GLD_loss = self.alpha*(GLD0_loss+GLD1_loss)
         
         #global loss
-        Global0 = self.GLobal(EDisease, M)
-        Global1 = self.GLobal(EDiseaseFake, M)
+        Global0, Global1 = self.GLobal(EDisease,EDiseaseFake, M)
+        # Global1 = self.GLobal(EDiseaseFake, M)
         
         Global0_loss = criterion_em(Global0,true_em.view(-1).long())
         Global1_loss = criterion_em(Global1,fake_em.view(-1).long())
@@ -566,11 +569,11 @@ def train_AIemb(DS_model,
         print('++ Ep Time: {:.1f} Secs ++'.format(time.time()-t0)) 
         total_loss.append(float(epoch_loss/epoch_cases))
         pd_total_loss = pd.DataFrame(total_loss)
-        pd_total_loss.to_csv('./loss_record/total_loss_finetune.csv', sep = ',')
+        pd_total_loss.to_csv('./loss_record/total_loss_finetune_dim_gl.csv', sep = ',')
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep+375,
+                   ep+435,
                    picpath='./pic/',
                    tsnepath='./tsne_pic/')
     print(total_loss)
