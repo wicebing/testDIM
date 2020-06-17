@@ -149,7 +149,7 @@ def plot_tsen(feature,sex_tlabel, ep,picpath='./pic_tsne/'):
         cls = sex_tlabel==tril        
         ax.scatter(T_tsne[cls,0],T_tsne[cls,1],
                    marker = '.', alpha=0.3,label=str(tril))    
-    plt.title('EDisease (cifar10) tsne '+str(p))     
+    plt.title('EDisease (cifar10) tsne '+str(ep))     
     plt.legend()
     plt.savefig(picpath+'EDisease_2d_cifar10_tsne_'+str(ep)+'.png')
     # plt.show()
@@ -524,7 +524,7 @@ def train_AIemb(DS_model,
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep+80,
+                   ep+180,
                    picpath='./pic/',
                    tsnepath='./tsne_pic/')
     print(total_loss)
@@ -639,7 +639,7 @@ def train_AIAED(DS_model,
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep+70,
+                   ep+170,
                    picpath='./pic_AE/',
                    tsnepath='./tsne_pic_AE/')
     print(total_loss)
@@ -675,7 +675,7 @@ if task == 'dim':
                 D, 
                 data_loader_train,
                 lr=1e-5, 
-                epoch=100,
+                epoch=10000,
                 log_interval=10,
                 parallel=parallel)
     
@@ -710,7 +710,7 @@ elif task == 'ae':
                 dec, 
                 data_loader_train,
                 lr=1e-5, 
-                epoch=100,
+                epoch=10000,
                 log_interval=10,
                 parallel=parallel)
 
