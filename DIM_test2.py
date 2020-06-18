@@ -438,7 +438,8 @@ def test_AIemb(DS_model,
                dloader,
                ep,
                picpath,
-               tsnepath):
+               tsnepath,
+               loss):
     global device
     DS_model.eval()
     
@@ -458,7 +459,7 @@ def test_AIemb(DS_model,
     all_label = torch.cat(all_label_,dim=0)            
 
     plot_2d(f_target,all_label,ep,picpath)
-    if ep%5==0:
+    if ep%5==0 and loss < 1.5:
         plot_tsen(f_target,all_label,ep,tsnepath)
     return f_target,all_label
 
@@ -487,8 +488,10 @@ def train_AIemb(DS_model,
     total_loss = []
     
     # f_target,all_label = test_AIemb(DS_model,
-    #            data_loader_test,
-    #            'init')
+    #             data_loader_test,
+    #             0,
+    #             picpath='./pic/',
+    #             tsnepath='./tsne_pic/')
     
     for ep in range(epoch):   
         t0 = time.time()
@@ -573,9 +576,10 @@ def train_AIemb(DS_model,
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
-                   ep+435,
+                   ep+58,
                    picpath='./pic/',
-                   tsnepath='./tsne_pic/')
+                   tsnepath='./tsne_pic/',
+                   loss = loss.sum().item())
     print(total_loss)
 
 
@@ -692,13 +696,152 @@ def train_AIAED(DS_model,
                    picpath='./pic_AE/',
                    tsnepath='./tsne_pic_AE/')
     print(total_loss)
+
+
+def train_AI_DAE(DS_model,
+                dim_model,
+                ae_model,
+                dloader,
+                lr=lr,
+                epoch=10000,
+                log_interval=10,
+                parallel=parallel):
+    global checkpoint_file, data_loader_test
+    DS_model.to(device)
+    dim_model.to(device)
+    ae_model.to(device)
+
+    model_optimizer = optim.Adam(DS_model.parameters(), lr=lr)
+    model_optimizer_dim = optim.Adam(dim_model.parameters(), lr=lr)
+    model_optimizer_ae = optim.Adam(ae_model.parameters(), lr=lr)
+    if parallel:
+        DS_model = torch.nn.DataParallel(DS_model)
+        dim_model = torch.nn.DataParallel(dim_model)
+        ae_model = torch.nn.DataParallel(ae_model)
+    else:
+        if device == 'cuda':
+            torch.cuda.set_device(0)
+
+    iteration = 0
+    total_loss = []
+    
+    f_target,all_label = test_AIemb(DS_model,
+               data_loader_test,
+               0,
+               picpath='./pic_dimae/',
+               tsnepath='./tsne_pic_dimae/',
+               loss = loss.sum().item())
+    
+    for ep in range(epoch):   
+        t0 = time.time()
+        epoch_loss = 0
+        epoch_cases =0
+        DS_model.train()
+        dim_model.train()
+        ptloss = False
+        
+        for batch_idx, data in enumerate(dloader):
+            
+            sample,label = data
+            sample,label = sample.to(device),label.to(device)
+            
+            model_optimizer.zero_grad()
+            model_optimizer_dim.zero_grad()
+            loss = 0
+
+            mode = 'D' if batch_idx%2==0 else 'G'
+            
+            
+            imgE, imgM = E(sample)   
+            
+            bs = len(sample)
+              
+            loss_dim = dim_model(imgE,
+                             imgM,
+                             mode=mode,
+                             ptloss=ptloss
+                            )
+            loss_ae,img = ae_model(imgE,
+                                   sample,
+                                  )
+            
+            loss = loss_dim+loss_ae
+
+            loss.sum().backward()
+            model_optimizer.step()
+            model_optimizer_dim.step()
+            model_optimizer_ae.step()
+
+            with torch.no_grad():
+                epoch_loss += loss.sum().item()*bs
+                epoch_cases += bs
+
+            if iteration % log_interval == 0:
+                print('Ep:{} [{} ({:.0f}%)/ ep_time:{:.0f}min] Ldim:{:.4f} Lae:{:.4f}'.format(
+                        ep, batch_idx * batch_size,
+                        100. * batch_idx / len(dloader),
+                        (time.time()-t0)*len(dloader)/(60*(batch_idx+1)),
+                        loss_dim.sum().item(),
+                        loss_ae.sum().item()))
+            if iteration % 1000 == 1:
+                ptloss = True
+            else:
+                ptloss = False
+                
+            if iteration % 500 == 0:
+                try:  
+                    save_checkpoint(checkpoint_file=checkpoint_file,
+                                    checkpoint_path='EDisease.pth',
+                                    model=DS_model,
+                                    parallel=parallel)
+                    save_checkpoint(checkpoint_file=checkpoint_file,
+                                    checkpoint_path='DIM.pth',
+                                    model=dim_model,
+                                    parallel=parallel)
+                    save_checkpoint(checkpoint_file=checkpoint_file,
+                                    checkpoint_path='decoder.pth',
+                                    model=ae_model,
+                                    parallel=parallel)
+                except: 
+                    print('** error save checkpoint **')
+                    pass
+                
+            iteration +=1
+        if ep % 1 ==0:
+            save_checkpoint(checkpoint_file=checkpoint_file,
+                            checkpoint_path='EDisease.pth',
+                            model=DS_model,
+                            parallel=parallel)
+            save_checkpoint(checkpoint_file=checkpoint_file,
+                            checkpoint_path='DIM.pth',
+                            model=dim_model,
+                            parallel=parallel)
+            save_checkpoint(checkpoint_file=checkpoint_file,
+                            checkpoint_path='decoder.pth',
+                            model=ae_model,
+                            parallel=parallel)
+            print('======= epoch:%i ========'%ep)
+                 
+        print('++ Ep Time: {:.1f} Secs ++'.format(time.time()-t0)) 
+        total_loss.append(float(epoch_loss/epoch_cases))
+        pd_total_loss = pd.DataFrame(total_loss)
+        pd_total_loss.to_csv('./loss_record/total_loss_finetune_dimae.csv', sep = ',')
+        
+        f_target,all_label = test_AIemb(DS_model,
+                   data_loader_test,
+                   ep+1,
+                   picpath='./pic_dimae/',
+                   tsnepath='./tsne_pic_dimae/',
+                   loss = loss.sum().item())
+    print(total_loss)
+
     
 if task == 'dim':    
     device = 'cuda:1'
     checkpoint_file = './checkpoint' 
 
     E = encoder()
-    D = DIM(device=device,gamma=1)
+    D = DIM(device=device,gamma=0)
     
     dec = decoder()
     
@@ -762,4 +905,41 @@ elif task == 'ae':
                 epoch=10000,
                 log_interval=10,
                 parallel=parallel)
+    
+elif task == 'dimae': 
+    device = 'cuda:1'
+    checkpoint_file = './checkpoint_DIMAE' 
+    
+    E = encoder()
+    D = DIM(device=device,gamma=0)
+    
+    dec = decoder()
+    
+    try: 
+        E = load_checkpoint(checkpoint_file,'EDisease.pth',E)
+        print(' ** Complete Load EDisease Model ** ')
+    except:
+        print('*** No Pretrain_EDisease_Model ***')
+    
+    try:     
+        D = load_checkpoint(checkpoint_file,'DIM.pth',D)
+    except:
+        print('*** No Pretrain_DIM_Model ***')
+        pass
+    
+    try:     
+        dec = load_checkpoint(checkpoint_file,'decoder.pth',dec)
+    except:
+        print('*** No Pretrain_decoder_Model ***')
+        pass
+
+    train_AI_DAE(E,
+                 D,
+                dec, 
+                data_loader_train,
+                lr=1e-5, 
+                epoch=10000,
+                log_interval=10,
+                parallel=parallel)
+
 
