@@ -24,7 +24,7 @@ try:
     task = sys.argv[1]
     print('*****task= ',task)
 except:
-    task = 'test'
+    task = 'none'
 
 CIFAR10 = torchvision.datasets.CIFAR10(
     './CIFAR10', train=True, download=True)
@@ -267,33 +267,24 @@ class GnLD(nn.Module):
 class GloD(nn.Module):
     def __init__(self):
         super(GloD, self).__init__()
-        self.encode1 = nn.Sequential(nn.Conv2d(1, 16, 3),
+        self.encode1 = nn.Sequential(nn.Conv2d(1, 16, 5),
                                      nn.GELU(),
                                      nn.Dropout(0.5),
                                      nn.BatchNorm2d(16),
-                                     nn.Conv2d(16, 32, 3),
+                                     nn.Conv2d(16, 32, 5),
                                      nn.GELU(),
                                      nn.Dropout(0.5),
                                      nn.BatchNorm2d(32),
                                      nn.MaxPool2d(2),
-                                     nn.Conv2d(32, 64, 3),
-                                     nn.GELU(),
-                                     nn.Dropout(0.5),
-                                     nn.BatchNorm2d(64),
-                                     nn.MaxPool2d(2),
-                                     nn.Conv2d(64, 64, 3),
-                                     nn.GELU(),
-                                     nn.BatchNorm2d(64),
-                                     nn.MaxPool2d(2),                                     
-                                     nn.Conv2d(64, 64, 2),
+                                     nn.Conv2d(32, 64, 5),
                                      nn.Tanh()
                                      )
-        self.Global =nn.Sequential(nn.Linear(64*2,4*64),
-                                   nn.LeakyReLU(),
+        self.Global =nn.Sequential(nn.Linear(4160,4*64),
+                                   nn.GELU(),
                                    nn.Dropout(0.5),
                                    nn.BatchNorm1d(4*64),
                                    nn.Linear(4*64,2*64),
-                                   nn.LeakyReLU(),
+                                   nn.GELU(),
                                    nn.Dropout(0.5),
                                    nn.BatchNorm1d(2*64),
                                    nn.Linear(2*64,2),                              
@@ -490,8 +481,8 @@ def train_AIemb(DS_model,
     f_target,all_label = test_AIemb(DS_model,
                 data_loader_test,
                 0,
-                picpath='./pic/',
-                tsnepath='./tsne_pic/',
+                picpath='./pic_3/',
+                tsnepath='./tsne_pic_3/',
                 loss=0)
     
     for ep in range(epoch):   
@@ -573,13 +564,13 @@ def train_AIemb(DS_model,
         print('++ Ep Time: {:.1f} Secs ++'.format(time.time()-t0)) 
         total_loss.append(float(epoch_loss/epoch_cases))
         pd_total_loss = pd.DataFrame(total_loss)
-        pd_total_loss.to_csv('./loss_record/total_loss_finetune_dim_gl.csv', sep = ',')
+        pd_total_loss.to_csv('./loss_record/total_loss_finetune_dim_3gl.csv', sep = ',')
         
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
                    ep+1,
-                   picpath='./pic/',
-                   tsnepath='./tsne_pic/',
+                   picpath='./pic_3/',
+                   tsnepath='./tsne_pic_3/',
                    loss = loss.sum().item())
     print(total_loss)
 
@@ -753,7 +744,7 @@ def train_AI_DAE(DS_model,
             mode = 'D' if batch_idx%2==0 else 'G'
             
             
-            imgE, imgM = DS_model(sample)   
+            imgE, imgM = E(sample)   
             
             bs = len(sample)
               
@@ -838,8 +829,8 @@ def train_AI_DAE(DS_model,
 
     
 if task == 'dim':    
-    device = 'cuda:0'
-    checkpoint_file = './checkpoint' 
+    device = 'cuda:1'
+    checkpoint_file = './checkpoint_3' 
 
     E = encoder()
     D = DIM(device=device,gamma=0.1)

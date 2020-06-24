@@ -267,26 +267,20 @@ class GnLD(nn.Module):
 class GloD(nn.Module):
     def __init__(self):
         super(GloD, self).__init__()
-        self.encode1 = nn.Sequential(nn.Conv2d(1, 16, 3),
+        self.decoder = nn.Sequential(nn.ConvTranspose2d(64,64,kernel_size=3, stride=1, padding=0),
                                      nn.GELU(),
                                      nn.Dropout(0.5),
-                                     nn.BatchNorm2d(16),
-                                     nn.Conv2d(16, 32, 3),
+                                     nn.BatchNorm2d(64),
+                                     nn.ConvTranspose2d(64,64,kernel_size=3, stride=2, padding=0),
+                                     nn.GELU(),
+                                     nn.Dropout(0.5),
+                                     nn.BatchNorm2d(64),
+                                     nn.ConvTranspose2d(64,32,kernel_size=3, stride=2, padding=0),
                                      nn.GELU(),
                                      nn.Dropout(0.5),
                                      nn.BatchNorm2d(32),
-                                     nn.MaxPool2d(2),
-                                     nn.Conv2d(32, 64, 3),
-                                     nn.GELU(),
-                                     nn.Dropout(0.5),
-                                     nn.BatchNorm2d(64),
-                                     nn.MaxPool2d(2),
-                                     nn.Conv2d(64, 64, 3),
-                                     nn.GELU(),
-                                     nn.BatchNorm2d(64),
-                                     nn.MaxPool2d(2),                                     
-                                     nn.Conv2d(64, 64, 2),
-                                     nn.Tanh()
+                                     nn.ConvTranspose2d(32,16,kernel_size=3, stride=2, padding=0),
+                                     nn.Sigmoid()
                                      )
         self.Global =nn.Sequential(nn.Linear(64*2,4*64),
                                    nn.LeakyReLU(),
@@ -301,8 +295,11 @@ class GloD(nn.Module):
 
         
     def forward(self, emb, emb_fake, img):
-        bs = img.shape[0]        
-        ME = self.encode1(img)
+        bs = img.shape[0]   
+        emb = emb.view(bs,64,1,1)
+        ME = self.decoder(emb)
+        
+        print(1111, ME.shape, img.shape)
                 
         EM = torch.cat([emb,ME.view(bs,-1)],dim=1)
         output = self.Global(EM)
@@ -487,12 +484,12 @@ def train_AIemb(DS_model,
     iteration = 0
     total_loss = []
     
-    f_target,all_label = test_AIemb(DS_model,
-                data_loader_test,
-                0,
-                picpath='./pic/',
-                tsnepath='./tsne_pic/',
-                loss=0)
+    # f_target,all_label = test_AIemb(DS_model,
+    #             data_loader_test,
+    #             0,
+    #             picpath='./pic/',
+    #             tsnepath='./tsne_pic/',
+    #             loss=0)
     
     for ep in range(epoch):   
         t0 = time.time()
