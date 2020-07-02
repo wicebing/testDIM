@@ -51,18 +51,18 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-batch_size = 4
-lr = 1e-5
+batch_size = 64
+lr = 1e-4
 
-parallel= False
+parallel= True
 device = 'cuda'
 
-transform = transforms.Compose([transforms.Grayscale(),
+transform = transforms.Compose([#transforms.Grayscale(),
                                 transforms.RandomRotation(8),
                                 transforms.RandomVerticalFlip(0.5),
                                 transforms.ToTensor()])
 
-transform_test = transforms.Compose([transforms.Grayscale(),
+transform_test = transforms.Compose([#transforms.Grayscale(),
                                      transforms.ToTensor()])
 
 train_data=MyDataset(ds=CIFAR10, transform=transform)
@@ -159,25 +159,26 @@ def plot_tsen(feature,sex_tlabel, ep,picpath='./pic_tsne/'):
 class encoder(nn.Module):
     def __init__(self):
         super(encoder, self).__init__()
-        self.encode0 = nn.Sequential(nn.Conv2d(1, 1, 1),
+        self.encode0 = nn.Sequential(nn.Conv2d(1, 1, 3,padding=1),
                                      nn.GELU(),
+                                     nn.BatchNorm2d(1),
                                      nn.Dropout(0.5),
-                                     nn.Conv2d(1, 1, 1),
-                                     nn.GELU(),
-                                     nn.Dropout(0.5))
-        self.encode1 = nn.Sequential(nn.Conv2d(1, 16, 3),
-                                     nn.GELU(),
-                                     nn.Dropout(0.5),
+                                     nn.Conv2d(1, 1, 3,padding=1),
+                                     nn.GELU())
+                                
+        self.encode1 = nn.Sequential(nn.Conv2d(3, 16, 3),
+                                     nn.GELU(),                                     
                                      nn.BatchNorm2d(16),
+                                     nn.Dropout(0.5),
                                      nn.Conv2d(16, 32, 3),
                                      nn.GELU(),
-                                     nn.Dropout(0.5),
                                      nn.BatchNorm2d(32),
+                                     nn.Dropout(0.5),
                                      nn.MaxPool2d(2),
                                      nn.Conv2d(32, 64, 3),
                                      nn.GELU(),
-                                     nn.Dropout(0.5),
                                      nn.BatchNorm2d(64),
+                                     nn.Dropout(0.5),
                                      nn.MaxPool2d(2),
                                      nn.Conv2d(64, 64, 3),
                                      nn.GELU(),
@@ -189,7 +190,7 @@ class encoder(nn.Module):
 
     def forward(self, img):
         bs = len(img)
-        img = self.encode0(img)
+        # img = self.encode0(img)
         output = self.encode1(img)
         return output.view(bs,-1), img#.view(bs,-1)
 
@@ -231,24 +232,24 @@ class decoder(nn.Module):
 class GnLD(nn.Module):
     def __init__(self):
         super(GnLD, self).__init__()
-        self.GLD = nn.Sequential(nn.Conv2d(65, 128, 3),
+        self.GLD = nn.Sequential(nn.Conv2d(67, 128, 3),
                                  nn.GELU(),
-                                 nn.Dropout(0.5),
                                  nn.BatchNorm2d(128),
+                                 nn.Dropout(0.5),
                                  nn.Conv2d(128, 64, 3),
                                  nn.GELU(),
-                                 nn.Dropout(0.5),
                                  nn.BatchNorm2d(64),
+                                 nn.Dropout(0.5),
                                  nn.MaxPool2d(2),
                                  nn.Conv2d(64, 32, 3),
                                  nn.GELU(),
-                                 nn.Dropout(0.5),
                                  nn.BatchNorm2d(32),
+                                 nn.Dropout(0.5),
                                  nn.MaxPool2d(2),
                                  nn.Conv2d(32, 16, 3),
                                  nn.GELU(),
-                                 nn.Dropout(0.5),
                                  nn.BatchNorm2d(16),
+                                 nn.Dropout(0.5),
                                  nn.Conv2d(16, 2, 4),                                 
                                  )
 
@@ -267,45 +268,66 @@ class GnLD(nn.Module):
 class GloD(nn.Module):
     def __init__(self):
         super(GloD, self).__init__()
-        self.decoder = nn.Sequential(nn.ConvTranspose2d(64,64,kernel_size=3, stride=1, padding=0),
-                                     nn.GELU(),
-                                     nn.Dropout(0.5),
-                                     nn.BatchNorm2d(64),
-                                     nn.ConvTranspose2d(64,64,kernel_size=3, stride=2, padding=0),
-                                     nn.GELU(),
-                                     nn.Dropout(0.5),
-                                     nn.BatchNorm2d(64),
-                                     nn.ConvTranspose2d(64,32,kernel_size=3, stride=2, padding=0),
-                                     nn.GELU(),
-                                     nn.Dropout(0.5),
-                                     nn.BatchNorm2d(32),
-                                     nn.ConvTranspose2d(32,16,kernel_size=3, stride=2, padding=0),
-                                     nn.Sigmoid()
-                                     )
-        self.Global =nn.Sequential(nn.Linear(64*2,4*64),
-                                   nn.LeakyReLU(),
+        self.Global = nn.Sequential(nn.Conv2d(1, 16, 3),
+                                 nn.GELU(),
+                                 nn.BatchNorm2d(16),
+                                 nn.Dropout(0.5),
+                                 nn.Conv2d(16, 64, 3),
+                                 nn.GELU(),
+                                 nn.BatchNorm2d(64),
+                                 nn.Dropout(0.5),
+                                 nn.MaxPool2d(2),
+                                 nn.Conv2d(64, 64, 3),
+                                 nn.GELU(),
+                                 nn.BatchNorm2d(64),
+                                 nn.Dropout(0.5),
+                                 nn.MaxPool2d(2),
+                                 nn.Conv2d(64, 32, 3),
+                                 nn.GELU(),
+                                 nn.BatchNorm2d(32),
+                                 nn.Dropout(0.5),
+                                 nn.Conv2d(32, 16, 3),
+                                 nn.GELU(),
+                                 nn.BatchNorm2d(16),
+                                 nn.Dropout(0.5),
+                                 nn.MaxPool2d(2),
+                                 nn.Conv2d(16, 4, 3),
+                                 nn.GELU(),
+                                 nn.BatchNorm2d(4),
+                                 nn.Dropout(0.5),
+                                 nn.Conv2d(4, 1, 3),
+                                 nn.GELU()
+                                 )
+        self.Global2 =nn.Sequential(nn.Linear(377,128),
+                                   nn.GELU(),
                                    nn.Dropout(0.5),
-                                   nn.BatchNorm1d(4*64),
-                                   nn.Linear(4*64,2*64),
-                                   nn.LeakyReLU(),
-                                   nn.Dropout(0.5),
-                                   nn.BatchNorm1d(2*64),
-                                   nn.Linear(2*64,2),                              
+                                   nn.BatchNorm1d(128),
+                                   nn.Linear(128,2),                            
                                    )
+
+    def made_em(self,emb,img):
+        bs = img.shape[0]
+        emb = emb.unsqueeze(2)
+        img = img.view(bs,-1).unsqueeze(1)
+        return torch.matmul(emb,img).unsqueeze(1)
+
+    def fp(self,EM):
+        bs = EM.shape[0] 
+        output = self.Global(EM)
+        output = output.view(bs,-1)
+        output = self.Global2(output)
+        return output
 
         
     def forward(self, emb, emb_fake, img):
-        bs = img.shape[0]   
-        emb = emb.view(bs,64,1,1)
-        ME = self.decoder(emb)
-        
-        print(1111, ME.shape, img.shape)
+        bs = img.shape[0]        
+
                 
-        EM = torch.cat([emb,ME.view(bs,-1)],dim=1)
-        output = self.Global(EM)
+        EM = self.made_em(emb,img.view(bs,-1))
+        output = self.fp(EM)
         
-        EM_fake = torch.cat([emb_fake,ME.view(bs,-1)],dim=1)
-        output_fake = self.Global(EM_fake)
+        EM_fake = self.made_em(emb_fake,img.view(bs,-1))
+        output_fake = self.fp(EM_fake)
                             
         return output, output_fake
 
@@ -835,7 +857,7 @@ def train_AI_DAE(DS_model,
 
     
 if task == 'dim':    
-    device = 'cuda:0'
+    device = 'cuda'
     checkpoint_file = './checkpoint' 
 
     E = encoder()
@@ -864,7 +886,7 @@ if task == 'dim':
     train_AIemb(E,
                 D, 
                 data_loader_train,
-                lr=1e-5, 
+                lr=1e-4, 
                 epoch=10000,
                 log_interval=10,
                 parallel=parallel)
