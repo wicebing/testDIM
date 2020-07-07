@@ -36,17 +36,23 @@ def default_loader(path):
     return Image.open(path).convert('RGB')
 
 class MyDataset(Dataset):
-    def __init__(self, ds, transform=None, target_transform=None, loader=default_loader):
+    def __init__(self, ds, transform=None, transform2=None, target_transform=None, loader=default_loader):
         self.imgs = ds
         self.transform = transform
+        self.transform2 = transform2
         self.target_transform = target_transform
         self.loader = loader
 
     def __getitem__(self, index):
         img, label = self.imgs[index][0], self.imgs[index][1]
-        if self.transform is not None:
-            img = self.transform(img)
-        return img,label
+        if self.transform2 is None:
+            if self.transform is not None:
+                img = self.transform(img)
+            return img,label
+        else:
+            img1 = self.transform(img)
+            img2 = self.transform(img)
+            return img1,img2,label            
 
     def __len__(self):
         return len(self.imgs)
@@ -62,10 +68,17 @@ transform = transforms.Compose([#transforms.Grayscale(),
                                 transforms.RandomVerticalFlip(0.5),
                                 transforms.ToTensor()])
 
+transform2 = transforms.Compose([#transforms.Grayscale(),
+                                transforms.ColorJitter(brightness=0.3,contrast=0.3,saturation=0.3,hue=0.3),
+                                transforms.RandomResizedCrop([32,32],scale=(0.1,1)),
+                                transforms.RandomRotation(8),
+                                transforms.RandomVerticalFlip(0.5),
+                                transforms.ToTensor()])
+
 transform_test = transforms.Compose([#transforms.Grayscale(),
                                      transforms.ToTensor()])
 
-train_data=MyDataset(ds=CIFAR10, transform=transform)
+train_data=MyDataset(ds=CIFAR10, transform=transform, transform2=transform2)
 data_loader_train = DataLoader(train_data, batch_size=batch_size,shuffle=True)
 
 test_data=MyDataset(ds=CIFAR10_test, transform=transform_test)
@@ -161,7 +174,7 @@ class encoder(nn.Module):
         super(encoder, self).__init__()
         self.encode0 = nn.Sequential(nn.Conv2d(3, 16, 3,padding=1),
                                      nn.GELU(),
-                                     nn.BatchNorm2d(1),
+                                     nn.BatchNorm2d(16),
                                      nn.Dropout(0.5),
                                      nn.Conv2d(16, 16, 3,padding=1),
                                      nn.GELU())
@@ -280,7 +293,7 @@ class GloD(nn.Module):
                                      nn.Conv2d(32, 64, 5),
                                      nn.Tanh()
                                      )
-        self.Global =nn.Sequential(nn.Linear(4160,4*64),
+        self.Global =nn.Sequential(nn.Linear(16448,4*64),
                                    nn.GELU(),
                                    nn.Dropout(0.5),
                                    nn.BatchNorm1d(4*64),
@@ -293,8 +306,9 @@ class GloD(nn.Module):
 
         
     def forward(self, emb, emb_fake, img):
-        bs = img.shape[0]        
-        ME = self.encode1(img)
+        bs = img.shape[0] 
+        ME = img
+        # ME = self.encode1(img)
                 
         EM = torch.cat([emb,ME.view(bs,-1)],dim=1)
         output = self.Global(EM)
@@ -582,8 +596,8 @@ def train_AIemb(DS_model,
         
         for batch_idx, data in enumerate(dloader):
             
-            sample,label = data
-            sample,label = sample.to(device),label.to(device)
+            sample,sample2,label = data
+            sample,sample2,label = sample.to(device),sample2.to(device),label.to(device)
             
             model_optimizer.zero_grad()
             model_optimizer_dim.zero_grad()
@@ -593,7 +607,7 @@ def train_AIemb(DS_model,
             
             
             imgE, imgM = DS_model(sample)   
-            imgE2, _ = DS_model(sample) 
+            imgE2, _ = DS_model(sample2) 
             
             bs = len(sample)
               
@@ -658,8 +672,8 @@ def train_AIemb(DS_model,
         f_target,all_label = test_AIemb(DS_model,
                    data_loader_test,
                    ep+1,
-                   picpath='./pic_6/',
-                   tsnepath='./tsne_pic_6/',
+                   picpath='./pic_7/',
+                   tsnepath='./tsne_pic_7/',
                    loss = loss.sum().item())
     print(total_loss)
 
@@ -919,7 +933,7 @@ def train_AI_DAE(DS_model,
     
 if task == 'dim':    
     device = 'cuda'
-    checkpoint_file = './checkpoint_6' 
+    checkpoint_file = './checkpoint_7' 
 
     E = encoder()
     D = DIM(device=device,gamma=0.1,delta=0.5)

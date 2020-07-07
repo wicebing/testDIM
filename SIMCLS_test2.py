@@ -58,7 +58,7 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-batch_size = 2048
+batch_size = 1024
 lr = 1e-5
 
 parallel= True
@@ -70,6 +70,7 @@ transform = transforms.Compose([#transforms.Grayscale(),
                                 transforms.ToTensor()])
 
 transform2 = transforms.Compose([#transforms.Grayscale(),
+                                transforms.ColorJitter(brightness=0.3,contrast=0.3,saturation=0.3,hue=0.3),
                                 transforms.RandomResizedCrop([32,32],scale=(0.1,1)),
                                 transforms.RandomRotation(8),
                                 transforms.RandomVerticalFlip(0.5),
@@ -564,7 +565,7 @@ def test_AIemb(DS_model,
     all_label = torch.cat(all_label_,dim=0)            
 
     plot_2d(f_target,all_label,ep,picpath)
-    if ep%200==0 and loss < 20:
+    if ep%10==0 and loss < 20:
         plot_tsen(f_target,all_label,ep,tsnepath)
     return f_target,all_label
 
@@ -1191,7 +1192,7 @@ elif task == 'simcls':
     train_simcls(E,
                  D,               
                 data_loader_train,
-                lr=1e-3, 
+                lr=1e-4, 
                 epoch=10000,
                 log_interval=10,
                 parallel=parallel)
